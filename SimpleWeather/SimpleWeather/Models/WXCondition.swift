@@ -7,117 +7,232 @@
 //
 
 import UIKit
-import Mantle
 
 let MPS_TO_MPH = 2.23694
 
-class WXCondition: MTLModel, MTLJSONSerializing {
+struct WXCondition : Codable , WXIcon{
+    let date : Date
+    let humidity : Float
+    let temperature : Float
+    let tempHigh : Float
+    let tempLow : Float
+    let locationName : String
+    let sunrise : Date
+    let sunset : Date
+    let conditionDescription :String
+    let condition : String
+    let windBearing : Float
+    let windSpeed : Float
+    let icon : String?
+    
+    struct systemInfo : Codable {
+        let message : Float
+        //let country : String
+        let sunrise : Float
+        let sunset : Float
+    }
+    /*
+    enum CodingKeys: String, CodingKey{
+        case date = "dt"
+        case humidity
+        case temperature
+        case tempHigh
+        case tempLow
+        case locationName
+        case sunrise
+        case sunset
+        case conditionDescription
+        case condition
+        case windBearing
+        case windSpeed
+        case icon
+    }*/
+}
 
-    var date : Date = Date()
-    var humidity : NSNumber = 0.0
-    var temperature :NSNumber = 0.0
-    var tempHigh : NSNumber = 0.0
-    var tempLow : NSNumber = 0.0
-    var locationName : String = ""
-    var sunrise : Date = Date()
-    var sunset : Date = Date()
-    var conditionDescription :String = ""
-    var condition : String = ""
-    var windBearing : NSNumber = 0.0
-    var windSpeed : NSNumber = 0.0
-    var icon : String = ""
+struct WXConditionService : Codable {
+    let coord : [String : Float]
+    let weather : [WXWeatherInfo]
+    let main : WXMainWeatherStats
+    let wind : [String : Float]
+    let dt : Double
+    let sys : WXCondition.systemInfo
+    let id : Int
+    let name : String
+}
+// Commonly used OpenWeather API Key Values
+struct WXMainWeatherStats : Codable {
+    let temp : Float
+    let pressure : Float
+    let humidity : Float
+    let minTemp : Float
+    let maxTemp : Float
+    var seaLvl : Float?
+    let groundLvl : Float?
     
-  
-    static var imageMap = [    "01d" :  "weather-clear",
-         "02d" :  "weather-few",
-         "03d" :  "weather-few",
-         "04d" :  "weather-broken",
-         "09d" :  "weather-shower",
-         "10d" :  "weather-rain",
-         "11d" :  "weather-tstorm",
-         "13d" :  "weather-snow",
-         "50d" :  "weather-mist",
-         "01n" :  "weather-moon",
-         "02n" :  "weather-few-night",
-         "03n" :  "weather-few-night",
-         "04n" :  "weather-broken",
-         "09n" :  "weather-shower",
-         "10n" :  "weather-rain-night",
-         "11n" :  "weather-tstorm",
-         "13n" :  "weather-snow",
-         "50n" :  "weather-mist",
-        ]
-    
-    
-    func imageName() -> String {
-        return WXCondition.imageMap[self.icon]!
+    enum CodingKeys : String, CodingKey {
+        case temp
+        case pressure
+        case humidity
+        case minTemp = "temp_min"
+        case maxTemp = "temp_max"
+        case seaLvl = "sea_level"
+        case groundLvl = "grnd_level"
     }
     
-    public static func jsonKeyPathsByPropertyKey() -> [AnyHashable : Any]!{
+}
+struct WXWeatherInfo : Codable {
+    let id : Int
+    let main : String
+    let description : String
+    let icon : String
+}
+protocol WXServices {
+    var main : [String : Float] {get set}
+    var wind : [String : Float] {get set}
+    var dt : Double { get set}
+    var sys : WXCondition.systemInfo {get set}
+    var id : Int { get set }
+    var name : String { get set}
+}
+struct WXDailyConditionService : Codable {
+    let city : cityInfo
+    let cnt : Int
+    let list : [WXDailyCondition]
+    struct cityInfo  : Codable{
+        let id : Float
+        let name : String
+        let latitude : Float
+        let longitude : Float
+        let country : String
+        let population : Int
         
-        //TODO: implement dictionary for protocol
-        return ["date":"dt",
-                "humidity":"main.humidity",
-                "temperature":"main.temp",
-                "tempHigh":"main.temp_max",
-                "tempLow":"main.temp_min",
-                "locationName":"sys.country",
-                "sunrise":"sys.sunrise",
-                "sunset":"sys.sunset",
-                "condition":"weather[0].main",
-                "conditionDescription":"weather[0].description",
-        ]
-    }
-    
-    static func dateJSONTransformer() -> ValueTransformer {
-    // 1
-      return MTLValueTransformer.init(usingForwardBlock: {(a: Any,b,c) -> Any? in return
-            
-            Date.init(timeIntervalSinceNow:a as! TimeInterval)
-            
-        }, reverse:{(a: Any,b,c) -> Any?
-            in
-           let dateformatter = DateFormatter()
-             return
-            
-            
-            dateformatter.string(from: (a as? Date)!)
-            
-        })
-    }
-    
-    static func sunriseJSONTransformer() -> ValueTransformer {
-        return self.dateJSONTransformer()
-    }
-    
-    static func sunsetJSONTransformer() -> ValueTransformer {
-        return self.dateJSONTransformer()
-    }
-    
-    static func conditionDescriptionJSONTransformer() ->ValueTransformer {
-        
-        return MTLValueTransformer.init(usingForwardBlock: { (s1:Any?, s2, s4) -> Any? in
-            let a = s1 as? Array<Any>
-           return a?.first
-        }, reverse: { (s1, s2, s3) -> Any? in
-            return [s1]
-        })
-    }
-    
-     static func conditionJSONTransformer() -> ValueTransformer {
-        return self.conditionDescriptionJSONTransformer()
-    }
-    
-     static func iconJSONTransformer() -> ValueTransformer {
-        return self.conditionDescriptionJSONTransformer()
-    }
-    
-    static func windSpeedJSONTransformer() -> ValueTransformer {
-        return MTLValueTransformer.init(usingForwardBlock: { (a,b,c) -> Any?
-           in let windSpeed = a as? NSNumber
-            return windSpeed // * MPS_TO_MPH
-        }, reverse: { (a,b,c) -> Any? in
-            return a // /MPS_TO_MPH
-        })
+        enum CodingKeys : String, CodingKey {
+            case id = "geoname_id"
+            case name
+            case latitude
+            case longitude
+            case country
+            case population
+        }
     }
 }
+struct WXDailyCondition : Codable, WXIcon {
+    var icon: String? { return weather.icon }
+    let time : String
+    let temp : dailyTemp
+    let pressure : Float
+    let humidity : Float
+    let weather : WXWeatherInfo
+    let speed : Float
+    let deg : Float
+    let clouds : Float
+    
+    struct dailyTemp : Codable{
+        let day : Float
+        let min : Float
+        let max : Float
+        let night : Float
+        let eve : Float
+        let morn : Float
+    }
+    enum CodingKeys : String, CodingKey {
+        case time = "dt_txt"
+        case temp
+        case pressure
+        case humidity
+        case weather
+        case speed
+        case deg
+        case clouds
+    }
+}
+
+struct WXHourlyConditionService : Codable {
+    let cnt : Int
+    let list : [WXHourlyCondition]
+    let city : cityInfo
+    
+    
+    struct cityInfo : Codable{
+        let id : Float
+        let name : String
+        let country : String
+    }
+}
+struct WXHourlyCondition : Codable, WXIcon {
+    var icon: String? { return weather[0].icon }
+    let dt : Double
+    let main : WXMainWeatherStats
+    let weather : [WXWeatherInfo]
+    let wind : [String : Float]
+    let time : String
+    
+    enum CodingKeys : String, CodingKey {
+        case time = "dt_txt"
+        case dt
+        case main
+        case weather
+        case wind
+    }
+}
+
+
+
+extension WXCondition {
+    init(service : WXConditionService) {
+        date = Date(timeIntervalSince1970:service.dt)
+        humidity = service.main.humidity
+        temperature = service.main.temp
+        tempHigh = service.main.maxTemp
+        tempLow = service.main.minTemp
+        locationName = service.name
+        sunrise = Date(timeIntervalSince1970: TimeInterval(service.sys.sunrise))
+        sunset = Date(timeIntervalSince1970: TimeInterval(service.sys.sunset))
+        conditionDescription = service.weather.description
+        condition = service.weather[0].main
+        windBearing = service.wind["deg"]!
+        windSpeed = service.wind["speed"]!
+        icon = service.weather[0].icon
+        
+    }
+    
+}
+
+
+protocol WXIcon {
+    func imageMap() -> [String: String]
+    func imageNamed() -> String
+    var icon : String? {get}
+}
+extension WXIcon{
+    func imageMap() -> [String: String] {
+        
+        return ["01d" : "weather-clear",
+        "02d" : "weather-few",
+        "03d" : "weather-few",
+        "04d" : "weather-broken",
+        "09d" : "weather-shower",
+        "10d" : "weather-rain",
+        "11d" : "weather-tstorm",
+        "13d" : "weather-snow",
+        "50d" : "weather-mist",
+        "01n" : "weather-moon",
+        "02n" : "weather-few-night",
+        "03n" : "weather-few-night",
+        "04n" : "weather-broken",
+        "09n" : "weather-shower",
+        "10n" : "weather-rain-night",
+        "11n" : "weather-tstorm",
+        "13n" : "weather-snow",
+        "50n" : "weather-mist"]
+    }
+    
+    func imageNamed() -> String {
+        guard let icon = icon else {
+            return self.imageMap()["01d"]!
+        }
+        return self.imageMap()[icon]!
+    }
+}
+
+

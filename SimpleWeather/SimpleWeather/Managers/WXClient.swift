@@ -10,80 +10,103 @@ import UIKit
 import CoreLocation
 import ReactiveSwift
 import Result
-import Mantle
+
+enum WXClientError : Error {
+    case commonError
+    case webFailure(description:String)
+    case parseFailure
+}
+
+typealias jsonData = [String : Any]
 
 class WXClient: NSObject {
-    
-     let APPID = "f9976cb284fb9b6ffa68977af727e5fb"
-    
-   lazy var session = { () -> URLSession in 
 
+   let APPID = "f9976cb284fb9b6ffa68977af727e5fb"
+    
+    var urlComponent = URLComponents(string: "https://api.openweathermap.org")
+    
+   lazy var session = { () -> URLSession in
             let sessionConfig =    URLSessionConfiguration.default
             let session = URLSession(configuration: sessionConfig)
             return session
-        }
+    }
     
-    
-    func fetchJSONFromURL(url:URL) -> SignalProducer<Any,NoError> {
-        
-        return SignalProducer<Any,NoError> { observer, _ in
-            
+    func fetchDataFromURL(url:URL) -> SignalProducer<Data,WXClientError> {
+        return SignalProducer<Data,WXClientError> { observer, _ in
             let task = self.session().dataTask(with: url) { (data, URLResponse, Error) in
-                //:TODO Handle retrieved data
-                
                     if let Error = Error {
-                        print(Error.localizedDescription)
+                        observer.send(error: WXClientError.webFailure(description: Error.localizedDescription))
                     } else if let httpResponse = URLResponse as? HTTPURLResponse {
                         if httpResponse.statusCode == 200 {
-                            let json = try? JSONSerialization.jsonObject(with: data!, options: [])
-                                observer.send(value: json)
+                            observer.send(value:data!)
                         }
-                    }
                 }
+            }
             task.resume()
         }
     }
     
-    func fetchCurrentConditionsForLocation(coordinate:CLLocationCoordinate2D) -> SignalProducer<Any,NoError> {
-            let url = URL(string: "http://api.openweathermap.org/data/2.5/weather?lat=\(coordinate.latitude)&lon=\(coordinate.longitude)&id=524901&APPID=\(APPID)")
-            return fetchJSONFromURL(url: url!).map({ data in
-                var jSONDict = data as? [AnyHashable:Any]
-                
-                do{
-                    let val = try MTLJSONAdapter.model(of: WXCondition.self, fromJSONDictionary: jSONDict)
-                    return val
-                }
-                catch
-                {
-                    print("Error ------ \(error)")
-                    return data
-                }
+    func fetchCurrentConditionsForLocation(coordinate:CLLocationCoordinate2D) -> Signal<WXCondition,WXClientError> {
+        return Signal<WXCondition,WXClientError> { observer , some in
+            let currentConditionURL = URL(string: "weather", relativeTo: urlComponent?.url)
+            urlComponent?.path = "/data/2.5/weather"
+            let latitudeQueryItem = URLQueryItem(name: "lat", value: String(coordinate.latitude))
+            let longitudeQueryItem = URLQueryItem(name: "lon", value: String(coordinate.longitude))
+            let unitQueryItem = URLQueryItem(name: "units", value: "imperial")
+            let appIDTokenQueryItem = URLQueryItem(name: "APPID", value: APPID)
+            
+            urlComponent?.queryItems = [latitudeQueryItem,longitudeQueryItem,unitQueryItem,appIDTokenQueryItem]
+            
+            let url = URL(string: "http://api.openweathermap.org/data/2.5/weather?lat=\(coordinate.latitude)&lon=\(coordinate.longitude)&units=imperial&APPID=\(APPID)")
+            
+            let weatherURL = urlComponent?.url
+            let signalObserver = Signal<Data, WXClientError>.Observer (
+                value: { value in
+                    do{
+                        let decoder = JSONDecoder()
+                        let currentCondition = try decoder.decode(WXConditionService.self, from: value)
+                        observer.send(value:WXCondition(service:currentCondition))
+                    }
+                    catch
+                    {
+                        print("Error ------ \(error)")
+                    }
+            }, completed: {
+                print("WXClient: completed")
+                observer.sendCompleted()
+            }, interrupted: {
+                print("WXClient.fetchCurrentConditions: interrupted")
             })
+            fetchDataFromURL(url: weatherURL!).start(signalObserver)
+            
+            /*fetchDataFromURL(url: url!).start(){ data in
+               data
+            }*/
+        }
     }
     
-    func fetchHourlyForecastForLocation(coordinate:CLLocationCoordinate2D) -> SignalProducer<Any,NoError> {
-        
-        let url = URL(string: "http://api.openweathermap.org/data/2.5/forecast?lat=\(coordinate.latitude)&lon=\(coordinate.longitude)&units=imperial&cnt=12&APPID=\(APPID)")
-        return fetchJSONFromURL(url: url!).map({ data in
-            var jSONDict = data as? [AnyHashable:Any]
-            let hourlyDict = jSONDict?["list"] as! [Any]
-            
-          return  hourlyDict.map{ item -> Any? in
-                        dump(item)
-                        let oneHour = item as! [AnyHashable:Any]
-                        do{
-                            let val = try MTLJSONAdapter.model(of: WXCondition.self, fromJSONDictionary: oneHour)
-                            return val
-                        }
-                        catch
-                        {
-                            print("Error ------ \(error)")
-                            return data
-                        }
+    func fetchHourlyForecastForLocation(coordinate:CLLocationCoordinate2D) -> Signal<[WXHourlyCondition],WXClientError> {
+        return Signal<[WXHourlyCondition],WXClientError> { observer ,some in
+            let url = URL(string: "http://api.openweathermap.org/data/2.5/forecast?lat=\(coordinate.latitude)&lon=\(coordinate.longitude)&units=imperial&cnt=40&APPID=\(APPID)")
+            fetchDataFromURL(url: url!).start(){ event in
+                if let value = event.value {
+                    do{
+                        let decoder = JSONDecoder()
+                        let val = try decoder.decode(WXHourlyConditionService.self, from: value)
+                        let conditions = val.list//val.list.map(){ return WXHourlyCondition(service:$0)}
+                        observer.send(value:conditions)
+                    }
+                    catch
+                    {
+                        print("Error ------ \(error)")
+                        observer.send(error:  WXClientError.parseFailure)
+                    }
+                }
             }
-            
-        })
+        }
     }
+    
+    /*
     func fetchDailyForecastForLocation(coordinate:CLLocationCoordinate2D) -> SignalProducer<Any,NoError> {
 
         let url = URL(string: "http://api.openweathermap.org/data/2.5/forecast/daily?lat=\(coordinate.latitude)&lon=\(coordinate.longitude)&units=imperial&cnt=7&appid=\(APPID)")
@@ -95,8 +118,8 @@ class WXClient: NSObject {
                             item -> Any in
                         let oneDay = item as! [AnyHashable:Any]
                                 do{
-                                    let val = try MTLJSONAdapter.model(of: WXDailyForcast.self, fromJSONDictionary: oneDay)
-                                    return val
+                                   // let val = try MTLJSONAdapter.model(of: WXDailyForcast.self, fromJSONDictionary: oneDay)
+                                  //  return val
                                 }
                                 catch
                                 {
@@ -108,5 +131,34 @@ class WXClient: NSObject {
                 })
 
     }
-
+*/
+    
+    func clientURL(coordinate : CLLocationCoordinate2D) -> URL{
+        
+        let currentConditionURL = URL(string: "weather", relativeTo: urlComponent?.url)
+        urlComponent?.path = "/data/2.5/weather"
+        let latitudeQueryItem = URLQueryItem(name: "lat", value: String(coordinate.latitude))
+        let longitudeQueryItem = URLQueryItem(name: "lon", value: String(coordinate.longitude))
+        let unitQueryItem = URLQueryItem(name: "units", value: "imperial")
+        let appIDTokenQueryItem = URLQueryItem(name: "APPID", value: APPID)
+        urlComponent?.queryItems = [latitudeQueryItem,longitudeQueryItem,unitQueryItem,appIDTokenQueryItem]
+        guard let completeURL = urlComponent?.url else {
+            return URL(string:"http://api.openweathermap.org/data/2.5/weather?lat=39.9&lon=75.16&units=imperial&APPID=f9976cb284fb9b6ffa68977af727e5fb")!
+        }
+        return completeURL
+    }
+    
+    func clientURL(withCity Name: String) -> URL {
+        let currentConditionURL = URL(string: "weather", relativeTo: urlComponent?.url)
+        urlComponent?.path = "/data/2.5/weather"
+        let nameQueryItem = URLQueryItem(name: "q" , value: Name)
+        let unitQueryItem = URLQueryItem(name: "units", value: "imperial")
+        let appIDTokenQueryItem = URLQueryItem(name: "APPID", value: APPID)
+        urlComponent?.queryItems = [nameQueryItem,unitQueryItem,appIDTokenQueryItem]
+        guard let completeURL = urlComponent?.url else {
+            return URL(string:"http://api.openweathermap.org/data/2.5/weather?q=London&units=imperial&APPID=f9976cb284fb9b6ffa68977af727e5fb")!
+        }
+        return completeURL
+        
+    }
 }

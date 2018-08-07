@@ -8,16 +8,3 @@
 
 import UIKit
 
-class WXDailyForcast: WXCondition {
-    
-    
-    static func ajsonKeyPathsByPropertyKey() -> [AnyHashable:Any] {
-    // 1
-    var paths = super.jsonKeyPathsByPropertyKey()    // 2
-    paths?["tempHigh"] = "temp.max"
-    paths?["tempLow"] = "temp.min"
-    // 3
-    return paths!
-    }
-
-}

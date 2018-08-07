@@ -26,7 +26,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         
         TSMessage.setDefaultViewController(self.window?.rootViewController)
         
-        
         return true
     }
 
