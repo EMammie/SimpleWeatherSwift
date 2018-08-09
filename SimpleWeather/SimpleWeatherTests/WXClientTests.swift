@@ -16,6 +16,8 @@ import MapKit
 class WXClientTests: XCTestCase {
     var sut : WXClient!
     
+    let staticUrl = URL(string: "http://api.openweathermap.org/data/2.5/weather?lat=39.9&lon=75.16&units=imperial&APPID=f9976cb284fb9b6ffa68977af727e5fb")
+    
     override func setUp() {
         super.setUp()
         // Put setup code here. This method is called before the invocation of each test method in the class.
@@ -35,22 +37,28 @@ class WXClientTests: XCTestCase {
         XCTAssertNotNil(sut)
     }
     
-    func test_fetchJSONSignal() {
+    func test_fetchDataSignal() {
 
-     let url = URL(string: "http://api.openweathermap.org/data/2.5/weather?q=Londonid=524901&APPID=f9976cb284fb9b6ffa68977af727e5fb")
-        
         let signalExpectation = self.expectation(description: "Signal Expectation")
-
-        let newSignal = sut.fetchJSONFromURL(url: url!).map { data in
-                signalExpectation.fulfill()
-                XCTAssertNotNil(data)
-                print(data)
+        
+        let testObserver = Signal<Data,WXClientError>.Observer{ (event) in
+                switch event {
+                case let .value(v):
+                    print("Test Observation value = \(v)")
+                    XCTAssertNotNil(v)
+                    signalExpectation.fulfill()
+                case let .failed(error):
+                    print("Test Observation error = \(error)")
+                case .completed:
+                    print("Test Observation completed")
+                case .interrupted:
+                    print("Test Observation interrupted")
+                }
             }
-            XCTAssertNotNil(newSignal)
+        let weatherURL = sut.clientURL(coordinate: CLLocationCoordinate2D(latitude: CLLocationDegrees(18), longitude: CLLocationDegrees(75)))
         
-            newSignal.start()
-        
-        self.waitForExpectations(timeout: 3.0, handler:nil)
+        sut.fetchDataFromURL(url: weatherURL).start(testObserver)
+        self.waitForExpectations(timeout: 2.0, handler:nil)
 
     }
     
@@ -60,18 +68,24 @@ class WXClientTests: XCTestCase {
         let long = CLLocationDegrees(39.9)
         let lat = CLLocationDegrees(75.16)
         let coord = CLLocationCoordinate2DMake(long, lat)
-        let newSignal = sut.fetchCurrentConditionsForLocation(coordinate: coord).map({ data in
-            signalExpectation.fulfill()
-            XCTAssertNotNil(data)
-
-            print("Data ---- \(data)")
-
-        })
-        XCTAssertNotNil(newSignal)
         
-        newSignal.start()
+        let testObserver = Signal<WXCondition,WXClientError>.Observer{ (event) in
+            switch event {
+            case let .value(v):
+                print("Test Observation value = \(v)")
+                XCTAssertNotNil(v)
+                signalExpectation.fulfill()
+            case let .failed(error):
+                print("Test Observation error = \(error)")
+            case .completed:
+                print("Test Observation completed")
+            case .interrupted:
+                print("Test Observation interrupted")
+            }
+        }
         
-         self.waitForExpectations(timeout: 3.0, handler:nil)
+        sut.fetchCurrentConditionsForLocation(coordinate: coord).observe(testObserver)
+        self.waitForExpectations(timeout: 3.0, handler:nil)
     }
     
     func test_fetchHourlyForcastForLocation(){
@@ -81,23 +95,33 @@ class WXClientTests: XCTestCase {
         let long = CLLocationDegrees(39)
         let lat = CLLocationDegrees(75)
         let coord = CLLocationCoordinate2DMake(long, lat)
-       
-        let newSignal = sut.fetchHourlyForecastForLocation(coordinate: coord).map({ data in
-            signalExpectation.fulfill()
-            XCTAssertNotNil(data)
-            print("Data ---- \(data)")
-            
-            
-        })
         
+        let testObserver = Signal<[WXHourlyCondition],WXClientError>.Observer{ (event) in
+            switch event {
+            case let .value(v):
+                print("Test Observation value = \(v)")
+                XCTAssertNotNil(v)
+                signalExpectation.fulfill()
+            case let .failed(error):
+                print("Test Observation error = \(error)")
+            case .completed:
+                print("Test Observation completed")
+            case .interrupted:
+                print("Test Observation interrupted")
+            }
+        }
+        
+        let newSignal = sut.fetchHourlyForecastForLocation(coordinate: coord).observe(){ event in
+            XCTAssertNotNil(event)
+            print("Data ---- \(event)")
+            signalExpectation.fulfill()
+        }
         
         XCTAssertNotNil(newSignal)
-        
-        newSignal.start()
-        
+        sut.fetchHourlyForecastForLocation(coordinate: coord).observe(testObserver)
         self.waitForExpectations(timeout: 3.0, handler:nil)
     }
-    
+   /*
     func test_fetchDailyForecastForLocation(){
         let signalExpectation = self.expectation(description: "Signal Expectation")
         
@@ -121,5 +145,5 @@ class WXClientTests: XCTestCase {
         
     }
 
-    
+    */
 }
