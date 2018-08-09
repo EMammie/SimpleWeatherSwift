@@ -129,7 +129,6 @@ class WXController: UIViewController , UITableViewDataSource, UITableViewDelegat
         conditionsLabel.text = "Clear"
         header.addSubview(conditionsLabel)
         
-        // 3
         // bottom left
         let iconView = UIImageView(frame: iconFrame)
         iconView.contentMode = UIViewContentMode.scaleAspectFit
@@ -166,7 +165,6 @@ class WXController: UIViewController , UITableViewDataSource, UITableViewDelegat
     override func viewWillLayoutSubviews() {
         
         let bounds = self.view.bounds
-        
         backgroundImageView.frame = bounds
         blurredVisualEffectView.frame = bounds
         tableView.frame = bounds
@@ -198,15 +196,12 @@ class WXController: UIViewController , UITableViewDataSource, UITableViewDelegat
             cell.textLabel?.textColor = UIColor.white
             cell.detailTextLabel?.textColor = UIColor.white
             
-            //TODO:Setup The cell
-            
             if (indexPath.section == 0) {
-                // 1
+            
                 if (indexPath.row == 0) {
                     self.configureHeaderCell(cell , title:"Hourly Forecast")
                 }
                 else {
-                    // 2
                     let weather = manager.hourlyForcast.value[indexPath.row - 1]
                     self.configureHourlyCell(cell,weather: weather)
 
@@ -234,23 +229,12 @@ class WXController: UIViewController , UITableViewDataSource, UITableViewDelegat
     
     
     func scrollViewDidScroll(_ scrollView :UIScrollView){
-        // 1
         let height = scrollView.bounds.size.height
         let  position = max(scrollView.contentOffset.y, 0.0)
-        // 2
         let percent = min(position / height, 1.0)
-        // 3
         self.blurredVisualEffectView.alpha = percent
     }
-    /*
-    // MARK: - Navigation
 
-    // In a storyboard-based application, you will often want to do a little preparation before navigation
-    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
-        // Get the new view controller using segue.destinationViewController.
-        // Pass the selected object to the new view controller.
-    }
-    */
     func configureHeaderCell(_ cell : UITableViewCell ,title: String) {
         cell.textLabel?.font = UIFont.init(name:"HelveticaNeue-Medium", size:18)
         cell.textLabel?.text = title
@@ -258,7 +242,6 @@ class WXController: UIViewController , UITableViewDataSource, UITableViewDelegat
         cell.imageView?.image = nil
     }
     
-    // 2
     func configureHourlyCell(_ cell : UITableViewCell, weather: WXHourlyCondition){
         cell.textLabel?.font = UIFont.init(name:"HelveticaNeue-Light", size:18)
         cell.detailTextLabel?.font = UIFont.init(name:"HelveticaNeue-Medium", size:18)
@@ -268,15 +251,16 @@ class WXController: UIViewController , UITableViewDataSource, UITableViewDelegat
         cell.imageView?.contentMode = .scaleAspectFit
     }
     
-    // 3
     func configureDailyCell(_ cell : UITableViewCell , weather: WXDailyCondition ){
         cell.textLabel?.font = UIFont.init(name:"HelveticaNeue-Light", size:18)
         cell.detailTextLabel?.font = UIFont.init(name:"HelveticaNeue-Medium", size:18)
-        let date = self.dailyFormatter.date(from: weather.time)
-        cell.textLabel?.text = self.dailyFormatter.string(from:date!)
+        let interval = TimeInterval(weather.time!)
+        let time = Date(timeIntervalSince1970: interval)
+        let date = self.dailyFormatter.string(from: time)
+        cell.textLabel?.text = date 
         cell.detailTextLabel?.text = String(format: "%.0f° / %.0f°",weather.temp.max,weather.temp.min)
         cell.imageView?.image = UIImage(named: weather.imageNamed())
         cell.imageView?.contentMode = .scaleAspectFit
-}
+    }
 
 }

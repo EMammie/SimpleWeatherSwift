@@ -10,7 +10,7 @@ import UIKit
 
 let MPS_TO_MPH = 2.23694
 
-struct WXCondition : Codable , WXIcon{
+struct WXCondition : Codable , WXIcon {
     let date : Date
     let humidity : Float
     let temperature : Float
@@ -49,15 +49,53 @@ struct WXCondition : Codable , WXIcon{
     }*/
 }
 
-struct WXConditionService : Codable {
-    let coord : [String : Float]
+struct WXDailyCondition : Codable, WXIcon {
+    var icon: String? { return weather[0].icon }
+    let time :Float?
+    let temp : dailyTemp
+    let pressure : Float
+    let humidity : Float
     let weather : [WXWeatherInfo]
-    let main : WXMainWeatherStats
-    let wind : [String : Float]
+    let speed : Float
+    let deg : Float
+    let clouds : Float
+    
+    struct dailyTemp : Codable{
+        let day : Float
+        let min : Float
+        let max : Float
+        let night : Float
+        let eve : Float
+        let morn : Float
+    }
+    enum CodingKeys : String, CodingKey {
+        case time = "dt"
+        case temp
+        case pressure
+        case humidity
+        case weather
+        case speed
+        case deg
+        case clouds
+    }
+}
+
+struct WXHourlyCondition : Codable, WXIcon {
+    
+    var icon: String? { return weather[0].icon }
     let dt : Double
-    let sys : WXCondition.systemInfo
-    let id : Int
-    let name : String
+    let main : WXMainWeatherStats
+    let weather : [WXWeatherInfo]
+    let wind : [String : Float]
+    let time : String
+    
+    enum CodingKeys : String, CodingKey {
+        case time = "dt_txt"
+        case dt
+        case main
+        case weather
+        case wind
+    }
 }
 // Commonly used OpenWeather API Key Values
 struct WXMainWeatherStats : Codable {
@@ -80,12 +118,15 @@ struct WXMainWeatherStats : Codable {
     }
     
 }
+
 struct WXWeatherInfo : Codable {
     let id : Int
     let main : String
     let description : String
     let icon : String
 }
+
+
 protocol WXServices {
     var main : [String : Float] {get set}
     var wind : [String : Float] {get set}
@@ -94,56 +135,37 @@ protocol WXServices {
     var id : Int { get set }
     var name : String { get set}
 }
+struct WXConditionService : Codable {
+    let coord : [String : Float]
+    let weather : [WXWeatherInfo]
+    let main : WXMainWeatherStats
+    let wind : [String : Float]
+    let dt : Double
+    let sys : WXCondition.systemInfo
+    let id : Int
+    let name : String
+}
+
 struct WXDailyConditionService : Codable {
     let city : cityInfo
     let cnt : Int
     let list : [WXDailyCondition]
     struct cityInfo  : Codable{
-        let id : Float
+        let id : Float?
         let name : String
-        let latitude : Float
-        let longitude : Float
+        let latitude : Float?
+        let longitude : Float?
         let country : String
         let population : Int
         
         enum CodingKeys : String, CodingKey {
-            case id = "geoname_id"
+            case id 
             case name
             case latitude
             case longitude
             case country
             case population
         }
-    }
-}
-struct WXDailyCondition : Codable, WXIcon {
-    var icon: String? { return weather.icon }
-    let time : String
-    let temp : dailyTemp
-    let pressure : Float
-    let humidity : Float
-    let weather : WXWeatherInfo
-    let speed : Float
-    let deg : Float
-    let clouds : Float
-    
-    struct dailyTemp : Codable{
-        let day : Float
-        let min : Float
-        let max : Float
-        let night : Float
-        let eve : Float
-        let morn : Float
-    }
-    enum CodingKeys : String, CodingKey {
-        case time = "dt_txt"
-        case temp
-        case pressure
-        case humidity
-        case weather
-        case speed
-        case deg
-        case clouds
     }
 }
 
@@ -159,22 +181,7 @@ struct WXHourlyConditionService : Codable {
         let country : String
     }
 }
-struct WXHourlyCondition : Codable, WXIcon {
-    var icon: String? { return weather[0].icon }
-    let dt : Double
-    let main : WXMainWeatherStats
-    let weather : [WXWeatherInfo]
-    let wind : [String : Float]
-    let time : String
-    
-    enum CodingKeys : String, CodingKey {
-        case time = "dt_txt"
-        case dt
-        case main
-        case weather
-        case wind
-    }
-}
+
 
 
 
@@ -195,18 +202,17 @@ extension WXCondition {
         icon = service.weather[0].icon
         
     }
-    
 }
 
 
 protocol WXIcon {
-    func imageMap() -> [String: String]
+    static func imageMap() -> [String: String]
     func imageNamed() -> String
     var icon : String? {get}
 }
-extension WXIcon{
-    func imageMap() -> [String: String] {
-        
+
+extension WXIcon {
+    static func imageMap() -> [String: String] {
         return ["01d" : "weather-clear",
         "02d" : "weather-few",
         "03d" : "weather-few",
@@ -229,9 +235,9 @@ extension WXIcon{
     
     func imageNamed() -> String {
         guard let icon = icon else {
-            return self.imageMap()["01d"]!
+            return Self.imageMap()["01d"]!
         }
-        return self.imageMap()[icon]!
+        return Self.imageMap()[icon]!
     }
 }
 

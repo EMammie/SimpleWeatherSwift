@@ -106,32 +106,27 @@ class WXClient: NSObject {
         }
     }
     
-    /*
-    func fetchDailyForecastForLocation(coordinate:CLLocationCoordinate2D) -> SignalProducer<Any,NoError> {
-
-        let url = URL(string: "http://api.openweathermap.org/data/2.5/forecast/daily?lat=\(coordinate.latitude)&lon=\(coordinate.longitude)&units=imperial&cnt=7&appid=\(APPID)")
-        return fetchJSONFromURL(url: url!).map({ data in
-                    var jSONDict = data as? [AnyHashable:Any]
-                    let dailyForcasts = jSONDict?["list"] as! [Any]
-            
-                    return dailyForcasts.map({
-                            item -> Any in
-                        let oneDay = item as! [AnyHashable:Any]
-                                do{
-                                   // let val = try MTLJSONAdapter.model(of: WXDailyForcast.self, fromJSONDictionary: oneDay)
-                                  //  return val
-                                }
-                                catch
-                                {
-                                    print("Error ------ \(error)")
-                                    return data
-                                }
-                    })
-            
-                })
-
+    func fetchDailyForecastForLocation(coordinate:CLLocationCoordinate2D) -> Signal<[WXDailyCondition],WXClientError> {
+        return Signal<[WXDailyCondition],WXClientError> { observer , some in
+            let url = URL(string: "http://api.openweathermap.org/data/2.5/forecast/daily?lat=\(coordinate.latitude)&lon=\(coordinate.longitude)&units=imperial&cnt=7&appid=\(APPID)")
+            fetchDataFromURL(url: url!).start(){ event in
+                if let value = event.value {
+                    do{
+                        let decoder = JSONDecoder()
+                        let val = try decoder.decode(WXDailyConditionService.self, from: value)
+                        let conditions = val.list//val.list.map(){ return WXHourlyCondition(service:$0)}
+                        observer.send(value:conditions)
+                    }
+                    catch
+                    {
+                        print("Error ------ \(error)")
+                        observer.send(error:  WXClientError.parseFailure)
+                    }
+                }
+            }
+        }
     }
-*/
+
     
     func clientURL(coordinate : CLLocationCoordinate2D) -> URL{
         
