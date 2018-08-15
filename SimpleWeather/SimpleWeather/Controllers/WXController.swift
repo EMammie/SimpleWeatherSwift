@@ -188,16 +188,16 @@ class WXController: UIViewController , UITableViewDataSource, UITableViewDelegat
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cellIdentifier = "CellIdentifier"
-        guard let cell = tableView.dequeueReusableCell(withIdentifier: cellIdentifier) else {
-            return UITableViewCell(style: UITableViewCellStyle.value1, reuseIdentifier: cellIdentifier)
-        }
+
+        let cell = UITableViewCell(style: .value1, reuseIdentifier: cellIdentifier)
+
             cell.selectionStyle = UITableViewCellSelectionStyle.none
             cell.backgroundColor = UIColor(white: 0, alpha: 0.2)
             cell.textLabel?.textColor = UIColor.white
             cell.detailTextLabel?.textColor = UIColor.white
             
             if (indexPath.section == 0) {
-            
+                
                 if (indexPath.row == 0) {
                     self.configureHeaderCell(cell , title:"Hourly Forecast")
                 }
@@ -236,7 +236,7 @@ class WXController: UIViewController , UITableViewDataSource, UITableViewDelegat
     }
 
     func configureHeaderCell(_ cell : UITableViewCell ,title: String) {
-        cell.textLabel?.font = UIFont.init(name:"HelveticaNeue-Medium", size:18)
+        cell.textLabel?.font = UIFont(name:"HelveticaNeue-Medium", size:18)
         cell.textLabel?.text = title
         cell.detailTextLabel?.text = ""
         cell.imageView?.image = nil
@@ -246,7 +246,7 @@ class WXController: UIViewController , UITableViewDataSource, UITableViewDelegat
         cell.textLabel?.font = UIFont.init(name:"HelveticaNeue-Light", size:18)
         cell.detailTextLabel?.font = UIFont.init(name:"HelveticaNeue-Medium", size:18)
         cell.textLabel?.text = self.hourlyFormatter.string(from:Date(timeIntervalSince1970: weather.dt))
-        cell.detailTextLabel?.text = String.init(format:"%.0f°",weather.main.temp)
+        cell.detailTextLabel?.text = String(format:"%.0f°",weather.main.temp)
         cell.imageView?.image = UIImage(named: weather.imageNamed())
         cell.imageView?.contentMode = .scaleAspectFit
     }
@@ -257,7 +257,7 @@ class WXController: UIViewController , UITableViewDataSource, UITableViewDelegat
         let interval = TimeInterval(weather.time!)
         let time = Date(timeIntervalSince1970: interval)
         let date = self.dailyFormatter.string(from: time)
-        cell.textLabel?.text = date 
+        cell.textLabel?.text = date
         cell.detailTextLabel?.text = String(format: "%.0f° / %.0f°",weather.temp.max,weather.temp.min)
         cell.imageView?.image = UIImage(named: weather.imageNamed())
         cell.imageView?.contentMode = .scaleAspectFit

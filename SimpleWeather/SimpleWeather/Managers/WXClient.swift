@@ -78,10 +78,6 @@ class WXClient: NSObject {
                 print("WXClient.fetchCurrentConditions: interrupted")
             })
             fetchDataFromURL(url: weatherURL!).start(signalObserver)
-            
-            /*fetchDataFromURL(url: url!).start(){ data in
-               data
-            }*/
         }
     }
     

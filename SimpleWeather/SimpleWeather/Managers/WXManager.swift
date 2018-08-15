@@ -52,27 +52,25 @@ class WXManager: NSObject , CLLocationManagerDelegate {
        // }
         currentLocation.signal.observeValues { location in
             
-            self.updateCurrentConditions().observe(){ [weak self] event in
-                if event.error != nil {
-                    DispatchQueue.main.async {
-                        self?.showError()
-                    }
-                }
-            }
-            self.updateHourlyConditions().observe() { event in
-                
-            }
+            let currentConditionalSignal : Signal<Any,WXClientError> = self.updateCurrentConditions().map { $0 }
+            let hourlyForcastSignal : Signal <Any, WXClientError> = self.updateHourlyConditions().map { $0 }
+            let dailyForcastSignal : Signal <Any, WXClientError> = self.updateDailyConditions().map { $0 }
+            let merged = Signal<Any,WXClientError>.merge(currentConditionalSignal,hourlyForcastSignal, dailyForcastSignal)
             
-            self.updateDailyConditions().observe() { event in
-                
+            merged.observe(on: UIScheduler()).observeFailed(){ error in
+                self.showError()
             }
         }
+        
+        
+        
     }
     
     
     func showError() {
         RMessage.showNotification(withTitle: "Error", subtitle: "There was a problem fetching the latest weather", type: .error, customTypeName: "", callback: {})
     }
+    
     func findCurrentLocation(){
         isFirstUpdate = true
         locationManager.startUpdatingLocation()

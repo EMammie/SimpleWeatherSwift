@@ -21,7 +21,7 @@ struct WXCondition : Codable , WXIcon {
     let sunset : Date
     let conditionDescription :String
     let condition : String
-    let windBearing : Float
+    let windBearing : Float?
     let windSpeed : Float
     let icon : String?
     
@@ -197,7 +197,7 @@ extension WXCondition {
         sunset = Date(timeIntervalSince1970: TimeInterval(service.sys.sunset))
         conditionDescription = service.weather.description
         condition = service.weather[0].main
-        windBearing = service.wind["deg"]!
+        windBearing = service.wind["deg"]
         windSpeed = service.wind["speed"]!
         icon = service.weather[0].icon
         
